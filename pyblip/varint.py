@@ -3,6 +3,7 @@
 
 import struct
 from typing import Tuple
+from io import BytesIO
 import sys
 
 MaxVarintLen16 = 3
@@ -100,21 +101,24 @@ def varint(buf: bytearray) -> Tuple[int, int]:
     return varint_ux, n
 
 
-def read_uvarint(r: bytes) -> int:
-    _output = bytearray()
-    for n, b in enumerate(bytearray(r)):
+def read_uvarint(r: BytesIO) -> Tuple[int, int]:
+    x = 0
+    s = 0
+    for n in range(MaxVarintLen64):
+        b = int.from_bytes(r.read(1), sys.byteorder)
         if b < 0x80:
-            if n == MaxVarintLen64-1 and b > 1:
-                raise ValueError(f"uvarint read overflow")
-            _output.append(b)
-            return struct.unpack('Q', bytes(_output))[0]
-        _output.append(b & 0x7f)
-    raise ValueError(f"uvarint read overflow")
+            if n == MaxVarintLen64 - 1 and b > 1:
+                return 0, -(n + 1)
+            x = x | b << s
+            return x, n + 1
+        x = x | (b & 0x7f) << s
+        s += 7
+    return 0, 0
 
 
-def read_varint(r: bytes) -> int:
-    varint_ux = read_uvarint(r)
-    varint_ux = varint_ux >> 1
-    if (varint_ux & 1) != 0:
+def read_varint(r: BytesIO) -> Tuple[int, int]:
+    uvarint_ux, n = read_uvarint(r)
+    varint_ux = uvarint_ux >> 1
+    if (uvarint_ux & 1) != 0:
         varint_ux = varint_ux ^ -1
-    return varint_ux
+    return varint_ux, n
