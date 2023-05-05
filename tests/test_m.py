@@ -3,6 +3,8 @@
 import os
 import sys
 import argparse
+from random import randbytes
+import base64
 
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
@@ -11,6 +13,7 @@ sys.path.append(current)
 
 from pyblip.client import BlipClient
 from pyblip.headers import BasicAuth, SessionAuth
+from pyblip.protocol import BLIPProtocol
 
 
 class Params(object):
@@ -34,14 +37,21 @@ class Params(object):
         return self.args
 
 
+def manual_1():
+    uri = f"ws://{options.host}:4984/{options.database}/_blipsync"
+    header = SessionAuth(options.session).header()
+
+    client = BlipClient(uri, header)
+    blip = BLIPProtocol()
+
+    checkpoint = base64.b64encode(randbytes(20)).decode('utf-8')
+    frame = blip.get_checkpoint(f"cp-{checkpoint}")
+    client.send_message(frame)
+    result = client.get_message()
+    print(result)
+
+
 p = Params()
 options = p.parameters
 
-# uri = f"ws://{options.host}:4984/{options.database}/_blipsync"
-# header = SessionAuth(options.session).header()
-#
-# blip = BlipClient(uri, header)
-#
-# result = blip.get_message()
-#
-# print(result)
+manual_1()
