@@ -37,11 +37,11 @@ class Params(object):
 p = Params()
 options = p.parameters
 
-uri = f"ws://{options.host}:4984/{options.database}/_blipsync"
-header = SessionAuth(options.session).header()
-
-blip = BlipClient(uri, header)
-
-result = blip.get_message()
-
-print(result)
+# uri = f"ws://{options.host}:4984/{options.database}/_blipsync"
+# header = SessionAuth(options.session).header()
+#
+# blip = BlipClient(uri, header)
+#
+# result = blip.get_message()
+#
+# print(result)
