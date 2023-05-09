@@ -17,7 +17,10 @@ class BlipClient:
                                     )
 
     def get_message(self):
-        result = self.ws.recv()
+        while True:
+            data = self.ws.recv()
+            if data:
+                return data
 
     def send_message(self, data: bytearray):
         self.ws.send(data)

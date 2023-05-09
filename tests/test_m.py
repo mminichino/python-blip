@@ -3,8 +3,12 @@
 import os
 import sys
 import argparse
+import time
+import logging
+import warnings
 from random import randbytes
 import base64
+from hashlib import sha1
 
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
@@ -15,6 +19,8 @@ from pyblip.client import BlipClient
 from pyblip.headers import BasicAuth, SessionAuth
 from pyblip.protocol import BLIPProtocol
 
+warnings.filterwarnings("ignore")
+logger = logging.getLogger()
 
 class Params(object):
 
@@ -40,15 +46,25 @@ class Params(object):
 def manual_1():
     uri = f"ws://{options.host}:4984/{options.database}/_blipsync"
     header = SessionAuth(options.session).header()
+    properties = {
+        "Profile": "setCheckpoint",
+        "client": "testClient"
+    }
+
+    logging.basicConfig()
+    logger.setLevel(logging.DEBUG)
 
     client = BlipClient(uri, header)
     blip = BLIPProtocol()
 
-    checkpoint = base64.b64encode(randbytes(20)).decode('utf-8')
-    frame = blip.get_checkpoint(f"cp-{checkpoint}")
+    uuid = sha1(randbytes(20)).hexdigest()
+    checkpoint = base64.b64encode(bytes.fromhex(uuid)).decode()
+    # frame = blip.get_checkpoint(f"cp-{checkpoint}")
+    frame = blip.send_message(0, properties)
     client.send_message(frame)
-    result = client.get_message()
-    print(result)
+    data = client.get_message()
+    blip.receive_message(data)
+    time.sleep(5)
 
 
 p = Params()
