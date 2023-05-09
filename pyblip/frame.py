@@ -168,8 +168,8 @@ class BLIPMessage(object):
     def prop_import(self, data: bytes):
         data = data.rstrip(b'\0')
         prop_list = data.split(b'\0')
-        for k, v in enumerate(prop_list):
-            self.properties[k] = v
+        for k, v in zip(*[iter(prop_list)]*2):
+            self.properties[k.decode('utf-8')] = v.decode('utf-8')
 
     @property
     def as_dict(self):

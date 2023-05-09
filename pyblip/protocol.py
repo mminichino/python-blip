@@ -1,7 +1,8 @@
 ##
 
 import logging
-from .frame import BLIPMessenger, BLIPMessage, MessageType, MPAtomicIncrement
+from .frame import BLIPMessenger, BLIPMessage, MessageType
+from .exceptions import BLIPError
 
 logger = logging.getLogger('pyblip.protocol')
 logger.addHandler(logging.NullHandler())
@@ -41,3 +42,6 @@ class BLIPProtocol(object):
         logger.debug(f"Type: {MessageType(m.type).name}")
         logger.debug(f"Properties: {m.properties}")
         logger.debug(f"Body: {m.body_as_string()}")
+
+        if m.type == 2:
+            raise BLIPError(m.number, m.properties, m.body_as_string())
