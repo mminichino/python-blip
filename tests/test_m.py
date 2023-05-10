@@ -46,7 +46,7 @@ def manual_1():
     uri = f"ws://{options.host}:4984/{options.database}/_blipsync"
     header = SessionAuth(options.session).header()
     properties = {
-        "Profile": "setCheckpoint",
+        "Profile": "getCheckpoint",
         "client": "testClient"
     }
 
