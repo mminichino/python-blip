@@ -15,8 +15,7 @@ parent = os.path.dirname(current)
 sys.path.append(parent)
 sys.path.append(current)
 
-from pyblip.client import BlipClient
-from pyblip.headers import BasicAuth, SessionAuth
+from pyblip.headers import SessionAuth
 from pyblip.protocol import BLIPProtocol
 
 warnings.filterwarnings("ignore")
@@ -54,17 +53,18 @@ def manual_1():
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
 
-    client = BlipClient(uri, header)
-    blip = BLIPProtocol()
+    blip = BLIPProtocol(uri, header)
 
     uuid = sha1(randbytes(20)).hexdigest()
     checkpoint = base64.b64encode(bytes.fromhex(uuid)).decode()
     # frame = blip.get_checkpoint(f"cp-{checkpoint}")
-    frame = blip.send_message(0, properties)
-    client.send_message(frame)
-    data = client.get_message()
-    blip.receive_message(data)
+    try:
+        blip.send_message(0, properties)
+        message = blip.receive_message()
+    except Exception as err:
+        logger.error(f"Error: {err}")
     time.sleep(5)
+    blip.stop()
 
 
 p = Params()

@@ -52,5 +52,9 @@ class CRCMismatch(NonFatalError):
     pass
 
 
+class WebSocketError(NonFatalError):
+    pass
+
+
 class BLIPError(BLIPException):
     pass
