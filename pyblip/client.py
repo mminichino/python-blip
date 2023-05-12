@@ -6,24 +6,31 @@ import logging
 import asyncio
 import websockets
 from websockets.legacy.client import WebSocketClientProtocol
+from websockets.exceptions import InvalidStatusCode, ConnectionClosed
 import multiprocessing
+from multiprocessing import Lock
 from queue import Empty
-from .exceptions import WebSocketError
+from pyblip.frame import MPAtomicIncrement
+from .exceptions import WebSocketError, NotAuthorized, HTTPNotImplemented, InternalServerError
 
 logger = logging.getLogger('pyblip.client')
 logger.addHandler(logging.NullHandler())
+sent_counter = MPAtomicIncrement()
 
 
 class BLIPClient(object):
 
     def __init__(self, uri: str, headers: dict):
+        lock = Lock()
         self.uri = uri
         self.headers = headers
         self.run_loop = True
-        self.websocket: WebSocketClientProtocol = None
+        self.websocket = WebSocketClientProtocol()
         self.loop = asyncio.get_event_loop()
         self.read_queue = multiprocessing.Queue()
         self.write_queue = multiprocessing.Queue()
+        self.run_status = multiprocessing.Value('i', 0)
+        self.run_message = multiprocessing.Array('c', 256, lock=lock)
 
     async def connect(self):
         tasks = []
@@ -40,16 +47,24 @@ class BLIPClient(object):
                     results = await asyncio.gather(*tasks, return_exceptions=True)
                     for result in results:
                         if isinstance(result, Exception):
-                            logger.error(f"run loop exception: {result}")
+                            logger.error(f"connection: {result}")
                             raise result
-        except websockets.ConnectionClosed:
+        except ConnectionClosed:
             return
+        except InvalidStatusCode as err:
+            self.handle_exception(err.status_code, str(err))
         except Exception as err:
-            raise WebSocketError(f"Websocket error: {err}")
+            self.handle_exception(500, str(err))
 
     async def disconnect(self):
         logger.debug(f"Received disconnect request")
         await self.websocket.close()
+
+    def handle_exception(self, code: int, message: str):
+        text = (message[:256] + '..') if len(message) > 256 else message
+        self.run_status.value = code
+        self.run_message.value = text.encode('utf-8')
+        self.read_queue.put(0)
 
     async def reader(self):
         try:

@@ -3,9 +3,9 @@
 import logging
 import asyncio
 from threading import Thread
-import time
+from queue import Empty
 from .frame import BLIPMessenger, BLIPMessage, MessageType
-from .exceptions import BLIPError
+from .exceptions import BLIPError, ClientError
 from .client import BLIPClient
 
 logger = logging.getLogger('pyblip.protocol')
@@ -25,7 +25,7 @@ class BLIPProtocol(BLIPClient):
         results = self.loop.run_until_complete(asyncio.gather(*connections, return_exceptions=True))
         for result in results:
             if isinstance(result, Exception):
-                raise result
+                logger.error(f"protocol exception: {result}")
 
     def stop(self):
         logger.debug(f"Received protocol stop request")
@@ -56,7 +56,14 @@ class BLIPProtocol(BLIPClient):
         self.write_queue.put(message)
 
     def receive_message(self):
-        data = self.read_queue.get()
+        try:
+            data = self.read_queue.get(timeout=15)
+        except Empty:
+            raise ClientError(408, "Receive Timeout")
+
+        if data == 0:
+            raise ClientError(self.run_status.value, self.run_message.value.decode('utf-8'))
+
         m: BLIPMessage = self.messenger.receive(data)
 
         logger.debug(f"Message #{m.number}")

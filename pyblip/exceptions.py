@@ -38,13 +38,26 @@ class NonFatalError(Exception):
 class BLIPException(Exception):
 
     def __init__(self, number, properties, body):
+        self.error_domain = None
+        self.error_code = None
         prefix = ""
         if 'Error-Domain' in properties:
-            prefix = f" {properties['Error-Domain']}"
+            self.error_domain = properties['Error-Domain']
+            prefix = f" {self.error_domain}"
         if 'Error-Code' in properties:
-            prefix = f"{prefix} {properties['Error-Code']}"
+            self.error_code = int(properties['Error-Code'])
+            prefix = f"{prefix} {self.error_code}"
         self.message = f"BLIP Error: MSG#{number}{prefix} {body}"
         logger.debug(f"BLIP exception: {self.message}")
+        super().__init__(self.message)
+
+
+class ClientException(Exception):
+
+    def __init__(self, code, message):
+        self.error_code = code
+        self.message = f"Client Error: {code} {message}"
+        logger.debug(f"client exception: {self.message}")
         super().__init__(self.message)
 
 
@@ -57,4 +70,20 @@ class WebSocketError(NonFatalError):
 
 
 class BLIPError(BLIPException):
+    pass
+
+
+class NotAuthorized(NonFatalError):
+    pass
+
+
+class HTTPNotImplemented(NonFatalError):
+    pass
+
+
+class InternalServerError(NonFatalError):
+    pass
+
+
+class ClientError(ClientException):
     pass

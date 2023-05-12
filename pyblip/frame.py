@@ -213,6 +213,20 @@ class BLIPMessenger(object):
 
         return message
 
+    def error_frame(self, code: int, e_type: str, message: str):
+        m = BLIPMessage.construct()
+
+        m.next_number()
+        m.set_type(2)
+        m.set_flags(0)
+        m.properties = {
+            "Error-Domain": e_type,
+            "Error-Code": code
+        }
+        m.body_import(message.encode('utf-8'))
+
+        return self.compose(m)
+
     def receive(self, message: bytearray) -> BLIPMessage:
         m = BLIPMessage.construct()
         header = 0

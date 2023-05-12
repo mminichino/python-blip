@@ -17,6 +17,7 @@ sys.path.append(current)
 
 from pyblip.headers import SessionAuth
 from pyblip.protocol import BLIPProtocol
+from pyblip.exceptions import BLIPError, NotAuthorized, HTTPNotImplemented, InternalServerError, ClientError
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
@@ -53,7 +54,13 @@ def manual_1():
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
 
-    blip = BLIPProtocol(uri, header)
+    try:
+        blip = BLIPProtocol(uri, header)
+    except NotAuthorized:
+        print("Invalid credentials")
+        sys.exit(1)
+    except (HTTPNotImplemented, InternalServerError):
+        raise
 
     uuid = sha1(randbytes(20)).hexdigest()
     checkpoint = base64.b64encode(bytes.fromhex(uuid)).decode()
@@ -61,6 +68,16 @@ def manual_1():
     try:
         blip.send_message(0, properties)
         message = blip.receive_message()
+    except BLIPError as err:
+        if err.error_code:
+            if err.error_code == 404:
+                print("Not found.")
+    except ClientError as err:
+        if err.error_code == 401:
+            print("Unauthorized: invalid credentials provided.")
+            sys.exit(0)
+        else:
+            raise
     except Exception as err:
         logger.error(f"Error: {err}")
     time.sleep(5)
