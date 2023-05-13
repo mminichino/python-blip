@@ -177,11 +177,12 @@ class BLIPMessage(object):
 
 
 class BLIPMessenger(object):
-    DEFLATE_TRAILER = "\x00\x00\xff\xff"
+    DEFLATE_TRAILER = b"\x00\x00\xff\xff"
 
     def __init__(self):
         self.messages_number = MPAtomicIncrement()
         self.buffer = bytearray()
+        self.unzip = zlib.decompressobj(-zlib.MAX_WBITS)
         self.s_crc = 0
         self.r_crc = 0
 
@@ -246,6 +247,19 @@ class BLIPMessenger(object):
         m.set_type(flags)
         m.set_flags(flags)
 
+        if m.compressed:
+            logger.debug("received compressed frame")
+            compressed_block = message[header:total - 4]
+            compressed_block = compressed_block + BLIPMessenger.DEFLATE_TRAILER
+            inflated = self.unzip.decompress(compressed_block)
+            self.r_crc = zlib.crc32(inflated, self.r_crc)
+            inflated = inflated + message[-4:]
+            r = BytesIO(inflated)
+            for line in FrameDump(inflated):
+                logger.debug(line)
+        else:
+            self.r_crc = zlib.crc32(message[header:total - 4], self.r_crc)
+
         prop_len, _ = binary.read_uvarint(r)
         prop_data = r.read(prop_len)
 
@@ -257,9 +271,7 @@ class BLIPMessenger(object):
             m.body_import(body)
 
         message_sum = r.read(4)
-
         r_crc = struct.unpack('>I', message_sum)
-        self.r_crc = zlib.crc32(message[header:total - 4], self.r_crc)
 
         if r_crc[0] != self.r_crc:
             raise CRCMismatch(f"message {message_num} CRC mismatch")

@@ -46,9 +46,28 @@ class Params(object):
 def manual_1():
     uri = f"ws://{options.host}:4984/{options.database}/_blipsync"
     header = SessionAuth(options.session).header()
-    properties = {
+    get_checkpoint_props = {
         "Profile": "getCheckpoint",
         "client": "testClient"
+    }
+
+    set_checkpoint_props = {
+        "Profile": "setCheckpoint",
+        "client": "testClient",
+        "rev": ""
+    }
+
+    set_checkpoint_body = {
+        "time": int(time.time()),
+        "remote": None
+    }
+
+    # json.dumps(set_checkpoint_body, separators=(',', ':'))
+
+    sub_changes = {
+        "Profile": "subChanges",
+        "versioning": "rev-trees",
+        "activeOnly": "true"
     }
 
     logging.basicConfig()
@@ -66,7 +85,7 @@ def manual_1():
     checkpoint = base64.b64encode(bytes.fromhex(uuid)).decode()
     # frame = blip.get_checkpoint(f"cp-{checkpoint}")
     try:
-        blip.send_message(0, properties)
+        blip.send_message(0, get_checkpoint_props)
         message = blip.receive_message()
     except BLIPError as err:
         if err.error_code:
@@ -80,6 +99,24 @@ def manual_1():
             raise
     except Exception as err:
         logger.error(f"Error: {err}")
+
+    try:
+        blip.send_message(0, sub_changes)
+        null_message = blip.receive_message()
+        message = blip.receive_message()
+    except BLIPError as err:
+        if err.error_code:
+            if err.error_code == 404:
+                print("Not found.")
+    except ClientError as err:
+        if err.error_code == 401:
+            print("Unauthorized: invalid credentials provided.")
+            sys.exit(0)
+        else:
+            raise
+    except Exception as err:
+        logger.error(f"Error: {err}")
+
     time.sleep(5)
     blip.stop()
 
