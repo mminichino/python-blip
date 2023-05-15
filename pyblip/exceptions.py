@@ -87,3 +87,7 @@ class InternalServerError(NonFatalError):
 
 class ClientError(ClientException):
     pass
+
+
+class ReplicationError(NonFatalError):
+    pass

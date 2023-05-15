@@ -23,6 +23,7 @@ from pyblip.exceptions import BLIPError, NotAuthorized, HTTPNotImplemented, Inte
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
 
+
 class Params(object):
 
     def __init__(self):
