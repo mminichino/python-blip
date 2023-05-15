@@ -2,6 +2,8 @@
 
 import logging
 import asyncio
+import json
+from typing import Any
 from threading import Thread
 from queue import Empty
 from .frame import BLIPMessenger, BLIPMessage, MessageType
@@ -35,13 +37,21 @@ class BLIPProtocol(BLIPClient):
     def send_message(self, m_type: int,
                      properties: dict,
                      body: str = "",
+                     body_json: Any = None,
+                     reply: int = None,
                      urgent: bool = False,
                      compress: bool = False,
                      no_reply: bool = False,
                      partial: bool = False):
         m = BLIPMessage.construct()
 
-        m.next_number()
+        if body_json:
+            body = json.dumps(body_json, separators=(',', ':'))
+
+        if reply:
+            m.set_number(reply)
+        else:
+            m.next_number()
         m.urgent = urgent
         m.compressed = compress
         m.no_reply = no_reply
@@ -54,6 +64,7 @@ class BLIPProtocol(BLIPClient):
 
         message = self.messenger.compose(m)
         self.write_queue.put(message)
+        return message
 
     def receive_message(self):
         try:

@@ -9,6 +9,7 @@ import pyblip.varint as binary
 from .exceptions import CRCMismatch
 import zlib
 import struct
+import json
 from io import BytesIO
 
 logger = logging.getLogger('pyblip.frame')
@@ -165,6 +166,14 @@ class BLIPMessage(object):
         prop_string = f"{prop_string}\0"
         return prop_string.encode('utf-8'), len(prop_string)
 
+    def prop_encode(self):
+        s = json.dumps(self.properties, separators=('\0', '\0')).encode('utf-8')
+        s = s.replace(b'\x22', b'')
+        s = s.replace(b'\x7b', b'')
+        s = s.replace(b'\x7d', b'')
+        s = s + b'\x00'
+        return s, len(s)
+
     def prop_import(self, data: bytes):
         data = data.rstrip(b'\0')
         prop_list = data.split(b'\0')
@@ -183,6 +192,7 @@ class BLIPMessenger(object):
         self.messages_number = MPAtomicIncrement()
         self.buffer = bytearray()
         self.unzip = zlib.decompressobj(-zlib.MAX_WBITS)
+        self.zip = zlib.compressobj(wbits=-zlib.MAX_WBITS)
         self.s_crc = 0
         self.r_crc = 0
 
@@ -197,7 +207,7 @@ class BLIPMessenger(object):
         message.extend(buffer)
         header += n
 
-        prop_string, prop_length = m.prop_string()
+        prop_string, prop_length = m.prop_encode()
         buffer, _ = binary.put_uvarint(binary.uint64(prop_length))
         message.extend(buffer)
         message.extend(prop_string)
@@ -206,6 +216,11 @@ class BLIPMessenger(object):
             message.extend(m.body)
 
         self.s_crc = zlib.crc32(message[header:], self.s_crc)
+
+        if m.compressed:
+            deflated_full = self.zip.compress(message[header:])
+            deflated = deflated_full[:len(deflated_full) - 4]
+            message[header:] = deflated
 
         message.extend(struct.pack('>I', self.s_crc))
 

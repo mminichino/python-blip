@@ -6,6 +6,7 @@ import argparse
 import time
 import logging
 import warnings
+import json
 from random import randbytes
 import base64
 from hashlib import sha1
@@ -67,8 +68,17 @@ def manual_1():
     sub_changes = {
         "Profile": "subChanges",
         "versioning": "rev-trees",
-        "activeOnly": "true"
+        "activeOnly": True
     }
+
+    max_history = {
+        "maxHistory": 20,
+        "blobs": True,
+        "deltas": True
+    }
+
+    # history_body = [[],[],[],[],[],[],[],[],[],[]]
+    history_body = []
 
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
@@ -101,9 +111,26 @@ def manual_1():
         logger.error(f"Error: {err}")
 
     try:
-        blip.send_message(0, sub_changes)
-        null_message = blip.receive_message()
-        message = blip.receive_message()
+        sub_changes_message = blip.send_message(0, sub_changes)
+        reply_message = blip.receive_message()
+        doc_list = blip.receive_message()
+        doc_count = json.loads(doc_list.body_as_string())
+        for i in range(len(doc_count)):
+            history_body.append([])
+        max_history_msg = blip.send_message(1, max_history, reply=doc_list.number, body_json=history_body)
+        changes_reply_msg = blip.receive_message()
+        received_doc_count = 0
+        while True:
+            try:
+                reply_message = blip.receive_message()
+                received_doc_count += 1
+            except ClientError as err:
+                if err.error_code == 408:
+                    break
+                else:
+                    raise
+        print(len(doc_count))
+        print(received_doc_count)
     except BLIPError as err:
         if err.error_code:
             if err.error_code == 404:
