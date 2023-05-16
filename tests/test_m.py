@@ -18,7 +18,8 @@ sys.path.append(current)
 
 from pyblip.headers import SessionAuth
 from pyblip.protocol import BLIPProtocol
-from pyblip.exceptions import BLIPError, NotAuthorized, HTTPNotImplemented, InternalServerError, ClientError
+from pyblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
+from pyblip.exceptions import BLIPError, NotAuthorized, HTTPNotImplemented, InternalServerError, ClientError, ReplicationError
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
@@ -43,6 +44,26 @@ class Params(object):
     @property
     def parameters(self):
         return self.args
+
+
+def manual_2():
+    connect_string = f"ws://{options.host}:4984"
+    logging.basicConfig()
+    logger.setLevel(logging.DEBUG)
+
+    replicator = Replicator(ReplicatorConfiguration.create(
+        options.database,
+        connect_string,
+        ReplicatorType.PULL,
+        SessionAuth(options.session),
+    ))
+
+    try:
+        replicator.start()
+        replicator.replicate()
+        replicator.stop()
+    except Exception as err:
+        print(f"Error: {err}")
 
 
 def manual_1():
@@ -152,4 +173,5 @@ def manual_1():
 p = Params()
 options = p.parameters
 
-manual_1()
+# manual_1()
+manual_2()
