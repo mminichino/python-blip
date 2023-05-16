@@ -91,3 +91,7 @@ class ClientError(ClientException):
 
 class ReplicationError(NonFatalError):
     pass
+
+
+class OutputError(NonFatalError):
+    pass

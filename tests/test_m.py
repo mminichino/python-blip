@@ -19,7 +19,8 @@ sys.path.append(current)
 from pyblip.headers import SessionAuth
 from pyblip.protocol import BLIPProtocol
 from pyblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
-from pyblip.exceptions import BLIPError, NotAuthorized, HTTPNotImplemented, InternalServerError, ClientError, ReplicationError
+from pyblip.exceptions import BLIPError, NotAuthorized, HTTPNotImplemented, InternalServerError, ClientError
+from pyblip.output import LocalDB, LocalFile, ScreenOutput
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
@@ -39,6 +40,8 @@ class Params(object):
         parser.add_argument("--external", action="store_true")
         parser.add_argument('--database', action='store', help="Test Database", default="testrun")
         parser.add_argument('--session', action='store', help="Session ID")
+        parser.add_argument("--screen", action="store_true")
+        parser.add_argument("--file", action="store_true")
         self.args = parser.parse_args()
 
     @property
@@ -51,11 +54,19 @@ def manual_2():
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
 
+    if options.screen:
+        output = ScreenOutput()
+    elif options.file:
+        output = LocalFile(os.environ['HOME'])
+    else:
+        output = LocalDB(os.environ['HOME'])
+
     replicator = Replicator(ReplicatorConfiguration.create(
         options.database,
         connect_string,
         ReplicatorType.PULL,
         SessionAuth(options.session),
+        output
     ))
 
     try:

@@ -1,8 +1,6 @@
 ##
 
-import os
 import attr
-import sqlite3
 import time
 import logging
 from hashlib import sha1
@@ -15,6 +13,7 @@ from typing import Union
 from .headers import SessionAuth, BasicAuth
 from .exceptions import ReplicationError, BLIPError, ClientError
 from .protocol import BLIPProtocol
+from .output import LocalDB, LocalFile, ScreenOutput
 
 logger = logging.getLogger('pyblip.replicator')
 logger.addHandler(logging.NullHandler())
@@ -26,53 +25,32 @@ class ReplicatorType(Enum):
     PUSH_AND_PULL = 3
 
 
-class LocalDB(object):
-
-    def __init__(self, directory: str, database: str = "default"):
-        self.directory = directory
-        self.db_file = f"{self.directory}/{database}.db"
-
-        if not os.access(self.directory, os.W_OK):
-            raise ReplicationError(f"Directory {self.directory} is not writable")
-
-        self.con = sqlite3.connect(self.db_file)
-        self.cur = self.con.cursor()
-
-        self.cur.execute('''
-           CREATE TABLE IF NOT EXISTS documents(
-               doc_id TEXT PRIMARY KEY ON CONFLICT REPLACE, 
-               document TEXT 
-           )''')
-        self.con.commit()
-
-    def write(self, doc_id: str, document: str):
-        self.cur.execute("INSERT OR REPLACE INTO documents VALUES (?, ?)", (doc_id, document))
-        self.con.commit()
-
-
 @attr.s
 class ReplicatorConfiguration(object):
     database = attr.ib(validator=instance_of(str))
     target = attr.ib(validator=instance_of(str))
     type = attr.ib(validator=instance_of(ReplicatorType))
     authenticator = attr.ib(validator=instance_of((SessionAuth, BasicAuth)))
-    datastore = attr.ib(validator=instance_of(LocalDB))
+    datastore = attr.ib(validator=instance_of((LocalDB, LocalFile, ScreenOutput)))
     continuous = attr.ib(validator=instance_of(bool))
+    checkpoint = attr.ib(validator=instance_of(bool))
 
     @classmethod
     def create(cls, database: str,
                target: str,
                r_type: ReplicatorType,
                authenticator: Union[SessionAuth, BasicAuth],
-               directory: str = "/var/tmp",
-               continuous: bool = False):
+               output: Union[LocalDB, LocalFile, ScreenOutput] = None,
+               continuous: bool = False,
+               checkpoint: bool = True):
         return cls(
             database,
             f"{target}/{database}/_blipsync",
             r_type,
             authenticator,
-            LocalDB(directory, database),
-            continuous
+            output.database(database),
+            continuous,
+            checkpoint
         )
 
 
@@ -139,6 +117,7 @@ class Replicator(object):
 
     def replicate(self):
         history_body = []
+        sequences = []
         try:
             sub_changes_message = self.blip.send_message(0, self.sub_changes_props)
             reply_message = self.blip.receive_message()
@@ -151,8 +130,13 @@ class Replicator(object):
             received_doc_count = 0
             for _ in range(len(doc_count)):
                 reply_message = self.blip.receive_message()
+                sequences.append(reply_message.properties['sequence'])
+                doc_id = reply_message.properties['id']
+                document = reply_message.body.decode('utf-8')
+                self.config.datastore.write(doc_id, document)
                 received_doc_count += 1
-            logging.debug(f"Replicated {received_doc_count} documents")
+            logger.debug(f"Replicated {received_doc_count} documents")
+            logger.debug(f"Max sequence {max(sequences)}")
         except BLIPError as err:
             raise ReplicationError(f"Replication protocol error: {err}")
         except ClientError as err:
