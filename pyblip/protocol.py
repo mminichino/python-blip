@@ -99,7 +99,7 @@ class BLIPProtocol(BLIPClient):
             if send_ack:
                 logger.debug(f"Sending ACK for message {m.number} bytes {m.frame_total}")
                 self.send_message(5, {}, reply=m.number, urgent=True, no_reply=True, ack_bytes=m.frame_total)
-            self.receive_message(m)
+            return self.receive_message(m)
 
         logger.debug(f"Message #{m.number}")
         logger.debug(f"Type: {MessageType(m.type).name}")

@@ -188,9 +188,6 @@ class Replicator(object):
             attachment = self.blip.send_message(0, self.get_attachment_props)
             reply_message = self.blip.receive_message()
         except Exception as err:
-            import traceback
-            tb = traceback.format_exc()
-            print(tb)
             self.stop()
             raise ReplicationError(f"Get attachment error: {err}")
         logger.debug(f"Received {len(data)} bytes")
