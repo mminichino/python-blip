@@ -62,7 +62,7 @@ class LocalFile(object):
     def write(self, doc_id: str, document: str):
         try:
             with open(self.jsonl_file, 'a') as jsonl_file:
-                line = {doc_id: document}
+                line = {doc_id: json.loads(document)}
                 jsonl_file.write(json.dumps(line) + '\n')
         except Exception as err:
             raise OutputError(f"can not write to file: {err}")

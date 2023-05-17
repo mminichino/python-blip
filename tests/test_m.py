@@ -42,6 +42,7 @@ class Params(object):
         parser.add_argument('--session', action='store', help="Session ID")
         parser.add_argument("--screen", action="store_true")
         parser.add_argument("--file", action="store_true")
+        parser.add_argument("--dir", action="store", help="Output Directory")
         self.args = parser.parse_args()
 
     @property
@@ -51,15 +52,16 @@ class Params(object):
 
 def manual_2():
     connect_string = f"ws://{options.host}:4984"
+    directory = options.dir if options.dir else os.environ['HOME']
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
 
     if options.screen:
         output = ScreenOutput()
     elif options.file:
-        output = LocalFile(os.environ['HOME'])
+        output = LocalFile(directory)
     else:
-        output = LocalDB(os.environ['HOME'])
+        output = LocalDB(directory)
 
     replicator = Replicator(ReplicatorConfiguration.create(
         options.database,
