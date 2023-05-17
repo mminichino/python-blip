@@ -83,7 +83,13 @@ class Replicator(object):
             "blobs": True,
             "deltas": True
         }
+        self.get_attachment_props = {
+            "Profile": "getAttachment",
+            "digest": "",
+            "docID": ""
+        }
         self.history_body = []
+        self.attachments = []
         self.blip = BLIPProtocol(self.config.target, self.config.authenticator.header())
         logger.info(f"Replicator active for client {self.client}")
 
@@ -139,6 +145,15 @@ class Replicator(object):
                 sequences.append(reply_message.properties['sequence'])
                 doc_id = reply_message.properties['id']
                 document = reply_message.body.decode('utf-8')
+                try:
+                    document = json.loads(document)
+                    if document.get("_attachments"):
+                        attachment = {"docID": doc_id}
+                        for item in document.get("_attachments"):
+                            attachment.update(document.get("_attachments", {}).get(item))
+                        self.attachments.append(attachment)
+                except json.decoder.JSONDecodeError:
+                    pass
                 self.config.datastore.write(doc_id, document)
                 received_doc_count += 1
             logger.info(f"Replicated {received_doc_count} documents")
@@ -149,15 +164,36 @@ class Replicator(object):
                 set_checkpoint = self.blip.send_message(0, self.set_checkpoint_props, body_json=self.set_checkpoint_body)
                 reply_message = self.blip.receive_message()
                 self.set_checkpoint_props.update({"rev": reply_message.properties.get("rev", "")})
+            for attachment in self.attachments:
+                self.get_attachment(attachment)
         except BLIPError as err:
+            self.stop()
             raise ReplicationError(f"Replication protocol error: {err}")
         except ClientError as err:
             if err.error_code == 401:
                 raise ReplicationError("Unauthorized: invalid credentials provided.")
             else:
+                self.stop()
                 raise ReplicationError(f"Websocket error: {err}")
         except Exception as err:
+            self.stop()
             raise ReplicationError(f"General error: {err}")
+
+    def get_attachment(self, attachment: dict):
+        data = bytearray()
+        logger.info(f"Getting attachment for {attachment['docID']} length {attachment['length']}")
+        self.get_attachment_props["digest"] = attachment["digest"]
+        self.get_attachment_props["docID"] = attachment["docID"]
+        try:
+            attachment = self.blip.send_message(0, self.get_attachment_props)
+            reply_message = self.blip.receive_message()
+        except Exception as err:
+            import traceback
+            tb = traceback.format_exc()
+            print(tb)
+            self.stop()
+            raise ReplicationError(f"Get attachment error: {err}")
+        logger.debug(f"Received {len(data)} bytes")
 
     def stop(self):
         self.blip.stop()

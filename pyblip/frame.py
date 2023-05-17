@@ -1,5 +1,6 @@
 ##
 
+from __future__ import annotations
 import attr
 import logging
 from attr.validators import instance_of as io
@@ -105,6 +106,8 @@ class BLIPMessage(object):
     more_coming = attr.ib(validator=io(bool))
     properties = attr.ib(validator=io(dict))
     body = attr.ib(validator=io(bytearray))
+    frame_size = attr.ib(validator=io(int))
+    ack_bytes = attr.ib(validator=io(int))
 
     @classmethod
     def construct(cls):
@@ -116,7 +119,9 @@ class BLIPMessage(object):
             False,
             False,
             {},
-            bytearray()
+            bytearray(),
+            0,
+            0
         )
 
     def set_number(self, n: int):
@@ -149,11 +154,15 @@ class BLIPMessage(object):
         if self.more_coming:
             self.type = self.type | FrameFlags.kMoreComing.value
 
+    def set_ack_bytes(self, n: int):
+        self.ack_bytes = n
+
     def body_as_string(self):
         return self.body.decode('utf-8')
 
     def body_import(self, data: bytes):
         self.body.extend(data)
+        self.frame_size += len(data) + 4
 
     def has_body(self) -> bool:
         return len(self.body) > 0
@@ -180,6 +189,22 @@ class BLIPMessage(object):
         for k, v in zip(*[iter(prop_list)]*2):
             self.properties[k.decode('utf-8')] = v.decode('utf-8')
 
+    def extend(self, m: BLIPMessage):
+        self.type = m.type
+        self.urgent = m.urgent
+        self.compressed = m.compressed
+        self.more_coming = m.more_coming
+        self.no_reply = m.no_reply
+        self.body_import(m.body)
+        return self
+
+    def frame_extend(self, n):
+        self.frame_size += n
+
+    @property
+    def frame_total(self):
+        return self.frame_size
+
     @property
     def as_dict(self):
         return self.__dict__
@@ -187,6 +212,8 @@ class BLIPMessage(object):
 
 class BLIPMessenger(object):
     DEFLATE_TRAILER = b"\x00\x00\xff\xff"
+    kAckInterval = 50000
+    kMaxUnackedBytes = 128000
 
     def __init__(self):
         self.messages_number = MPAtomicIncrement()
@@ -207,6 +234,11 @@ class BLIPMessenger(object):
         message.extend(buffer)
         header += n
 
+        if (m.type & 0x07) == MessageType.AckResponseType.value:
+            buffer, n = binary.put_uvarint(binary.uint64(m.ack_bytes))
+            message.extend(buffer)
+            return message
+
         prop_string, prop_length = m.prop_encode()
         buffer, _ = binary.put_uvarint(binary.uint64(prop_length))
         message.extend(buffer)
@@ -224,8 +256,8 @@ class BLIPMessenger(object):
 
         message.extend(struct.pack('>I', self.s_crc))
 
-        for line in FrameDump(message):
-            logger.debug(line)
+        # for line in FrameDump(message):
+        #     logger.debug(line)
 
         return message
 
@@ -243,13 +275,13 @@ class BLIPMessenger(object):
 
         return self.compose(m)
 
-    def receive(self, message: bytearray) -> BLIPMessage:
+    def receive(self, message: bytearray, continuation: bool = False) -> BLIPMessage:
         m = BLIPMessage.construct()
         header = 0
         total = len(message)
 
-        for line in FrameDump(message):
-            logger.debug(line)
+        # for line in FrameDump(message):
+        #     logger.debug(line)
 
         r = BytesIO(message)
 
@@ -270,15 +302,16 @@ class BLIPMessenger(object):
             self.r_crc = zlib.crc32(inflated, self.r_crc)
             inflated = inflated + message[-4:]
             r = BytesIO(inflated)
-            for line in FrameDump(inflated):
-                logger.debug(line)
+            # for line in FrameDump(inflated):
+            #     logger.debug(line)
         else:
             self.r_crc = zlib.crc32(message[header:total - 4], self.r_crc)
 
-        prop_len, _ = binary.read_uvarint(r)
-        prop_data = r.read(prop_len)
-
-        m.prop_import(prop_data)
+        if not continuation:
+            prop_len, n = binary.read_uvarint(r)
+            m.frame_extend(n + prop_len)
+            prop_data = r.read(prop_len)
+            m.prop_import(prop_data)
 
         remainder = r.getbuffer().nbytes - r.tell()
         if remainder > 4:

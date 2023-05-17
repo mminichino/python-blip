@@ -3,6 +3,7 @@
 import sqlite3
 import os
 import json
+from typing import Union
 from .exceptions import OutputError
 
 
@@ -33,7 +34,9 @@ class LocalDB(object):
 
         return self
 
-    def write(self, doc_id: str, document: str):
+    def write(self, doc_id: str, document: Union[dict, str]):
+        if type(document) == dict:
+            document = json.dumps(document)
         self.cur.execute("INSERT OR REPLACE INTO documents VALUES (?, ?)", (doc_id, document))
         self.con.commit()
 
@@ -59,10 +62,10 @@ class LocalFile(object):
 
         return self
 
-    def write(self, doc_id: str, document: str):
+    def write(self, doc_id: str, document: Union[dict, str]):
         try:
             with open(self.jsonl_file, 'a') as jsonl_file:
-                line = {doc_id: json.loads(document)}
+                line = {doc_id: document}
                 jsonl_file.write(json.dumps(line) + '\n')
         except Exception as err:
             raise OutputError(f"can not write to file: {err}")
@@ -78,6 +81,6 @@ class ScreenOutput(object):
         return self
 
     @staticmethod
-    def write(doc_id: str, document: str):
-        line = {doc_id: json.loads(document)}
+    def write(doc_id: str, document: Union[dict, str]):
+        line = {doc_id: document}
         print(json.dumps(line))
