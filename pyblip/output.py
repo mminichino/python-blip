@@ -80,4 +80,4 @@ class ScreenOutput(object):
     @staticmethod
     def write(doc_id: str, document: str):
         line = {doc_id: json.loads(document)}
-        print(json.dumps(line) + '\n')
+        print(json.dumps(line))

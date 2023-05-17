@@ -58,19 +58,20 @@ class Replicator(object):
 
     def __init__(self, config: ReplicatorConfiguration):
         self.config = config
-        self.uuid = uuid.getnode()
+        self.uuid = str(uuid.getnode())
+        self.client = self.get_id_hash()
         self.get_checkpoint_props = {
             "Profile": "getCheckpoint",
-            "client": "testClient"
+            "client": self.client
         }
         self.set_checkpoint_props = {
             "Profile": "setCheckpoint",
-            "client": "testClient",
+            "client": self.client,
             "rev": ""
         }
         self.set_checkpoint_body = {
             "time": int(time.time()),
-            "remote": None
+            "remote": 0
         }
         self.sub_changes_props = {
             "Profile": "subChanges",
@@ -84,14 +85,15 @@ class Replicator(object):
         }
         self.history_body = []
         self.blip = BLIPProtocol(self.config.target, self.config.authenticator.header())
+        logger.info(f"Replicator active for client {self.client}")
 
-    def get_uuid_hash(self):
+    def get_id_hash(self) -> str:
         id_hash = sha1()
 
-        id_hash.update(self.uuid)
-        id_hash.update(self.config.database)
-        id_hash.update(self.config.target)
-        id_hash.update(self.config.type.name)
+        id_hash.update(self.uuid.encode('utf-8'))
+        id_hash.update(self.config.database.encode('utf-8'))
+        id_hash.update(self.config.target.encode('utf-8'))
+        id_hash.update(self.config.type.name.encode('utf-8'))
 
         r_uuid = id_hash.hexdigest()
         checkpoint = base64.b64encode(bytes.fromhex(r_uuid)).decode()
@@ -100,7 +102,11 @@ class Replicator(object):
     def start(self):
         try:
             self.blip.send_message(0, self.get_checkpoint_props)
-            message = self.blip.receive_message()
+            checkpoint_message = self.blip.receive_message()
+            checkpoint = json.loads(checkpoint_message.body.decode('utf-8'))
+            self.set_checkpoint_body.update({"time": checkpoint['time']})
+            self.set_checkpoint_body.update({"remote": checkpoint['remote']})
+            self.set_checkpoint_props.update({"rev": checkpoint_message.properties.get("rev", "")})
         except BLIPError as err:
             if err.error_code:
                 if err.error_code == 404:
@@ -135,8 +141,14 @@ class Replicator(object):
                 document = reply_message.body.decode('utf-8')
                 self.config.datastore.write(doc_id, document)
                 received_doc_count += 1
-            logger.debug(f"Replicated {received_doc_count} documents")
+            logger.info(f"Replicated {received_doc_count} documents")
             logger.debug(f"Max sequence {max(sequences)}")
+            if self.config.checkpoint:
+                logger.info(f"Setting checkpoint for sequence {max(sequences)}")
+                self.set_checkpoint_body.update({"remote": max(sequences)})
+                set_checkpoint = self.blip.send_message(0, self.set_checkpoint_props, body_json=self.set_checkpoint_body)
+                reply_message = self.blip.receive_message()
+                self.set_checkpoint_props.update({"rev": reply_message.properties.get("rev", "")})
         except BLIPError as err:
             raise ReplicationError(f"Replication protocol error: {err}")
         except ClientError as err:
