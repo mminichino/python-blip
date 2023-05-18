@@ -185,9 +185,14 @@ class Replicator(object):
         self.get_attachment_props["digest"] = attachment["digest"]
         self.get_attachment_props["docID"] = attachment["docID"]
         try:
-            attachment = self.blip.send_message(0, self.get_attachment_props)
+            self.blip.send_message(0, self.get_attachment_props)
             reply_message = self.blip.receive_message()
+            data = reply_message.body_as_bytes()
+            self.config.datastore.write_attachment(attachment['docID'], attachment['content_type'], data)
         except Exception as err:
+            import traceback
+            tb = traceback.format_exc()
+            print(tb)
             self.stop()
             raise ReplicationError(f"Get attachment error: {err}")
         logger.debug(f"Received {len(data)} bytes")

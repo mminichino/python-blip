@@ -160,6 +160,9 @@ class BLIPMessage(object):
     def body_as_string(self):
         return self.body.decode('utf-8')
 
+    def body_as_bytes(self) -> bytes:
+        return bytes(self.body)
+
     def body_import(self, data: bytes):
         self.body.extend(data)
         self.frame_size += len(data) + 4

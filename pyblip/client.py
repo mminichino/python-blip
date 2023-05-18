@@ -68,7 +68,7 @@ class BLIPClient(object):
 
     async def reader(self):
         try:
-            data = await asyncio.wait_for(self.websocket.recv(), timeout=1.0)
+            data = await asyncio.wait_for(self.websocket.recv(), timeout=0.01)
             if data:
                 logger.debug(f"received data frame")
                 self.read_queue.put(data)
@@ -84,7 +84,7 @@ class BLIPClient(object):
             await self.websocket.send(data)
             logger.debug(f"sent data frame")
         except Empty:
-            time.sleep(1.0)
+            time.sleep(0.01)
         except Exception as err:
             logger.debug(f"Writer error: {err}")
             raise

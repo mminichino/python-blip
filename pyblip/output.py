@@ -3,7 +3,9 @@
 import sqlite3
 import os
 import json
+import re
 from typing import Union
+import mimetypes
 from .exceptions import OutputError
 
 
@@ -27,9 +29,15 @@ class LocalDB(object):
 
         self.cur.execute('''
            CREATE TABLE IF NOT EXISTS documents(
-               doc_id TEXT PRIMARY KEY ON CONFLICT REPLACE, 
+               doc_id TEXT PRIMARY KEY ON CONFLICT REPLACE,
                document TEXT 
            )''')
+        self.cur.execute('''
+            CREATE TABLE IF NOT EXISTS attachments(
+                doc_id TEXT PRIMARY KEY ON CONFLICT REPLACE,
+                content_type TEXT,
+                data BLOB
+            )''')
         self.con.commit()
 
         return self
@@ -38,6 +46,10 @@ class LocalDB(object):
         if type(document) == dict:
             document = json.dumps(document)
         self.cur.execute("INSERT OR REPLACE INTO documents VALUES (?, ?)", (doc_id, document))
+        self.con.commit()
+
+    def write_attachment(self, doc_id: str, c_type: str, data: bytes):
+        self.cur.execute("INSERT OR REPLACE INTO attachments VALUES (?, ?, ?)", (doc_id, c_type, data))
         self.con.commit()
 
 
@@ -70,6 +82,17 @@ class LocalFile(object):
         except Exception as err:
             raise OutputError(f"can not write to file: {err}")
 
+    def write_attachment(self, doc_id: str, c_type: str, data: bytes):
+        extension = mimetypes.guess_all_extensions(c_type)[0]
+        file_prefix = re.sub(r'[#%&{}<>*?$!:@+|=\\/\'\s`\"]', '_', doc_id).strip().lower()
+        filename = f"{self.directory}/{file_prefix}{extension}"
+        try:
+            with open(filename, 'wb') as data_file:
+                data_file.write(data)
+                data_file.close()
+        except Exception as err:
+            raise OutputError(f"can not write to file: {err}")
+
 
 class ScreenOutput(object):
 
@@ -84,3 +107,7 @@ class ScreenOutput(object):
     def write(doc_id: str, document: Union[dict, str]):
         line = {doc_id: document}
         print(json.dumps(line))
+
+    @staticmethod
+    def write_attachment(doc_id: str, c_type: str, data: bytes):
+        print(f"Attachment from document {doc_id} of type {c_type} length {len(data)}")
