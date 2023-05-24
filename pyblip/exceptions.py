@@ -5,6 +5,7 @@ import sys
 import os
 import inspect
 import logging
+import traceback
 
 logger = logging.getLogger('pyblip.exception')
 logger.addHandler(logging.NullHandler())
@@ -13,7 +14,6 @@ logger.addHandler(logging.NullHandler())
 class FatalError(Exception):
 
     def __init__(self, message):
-        import traceback
         logging.debug(traceback.print_exc())
         frame = inspect.currentframe().f_back
         (filename, line, function, lines, index) = inspect.getframeinfo(frame)
@@ -26,12 +26,13 @@ class FatalError(Exception):
 class NonFatalError(Exception):
 
     def __init__(self, message):
+        tb = traceback.format_exc()
         frame = inspect.currentframe().f_back
         (filename, line, function, lines, index) = inspect.getframeinfo(frame)
         filename = os.path.basename(filename)
         self.message = "Error: {} in {} {} at line {}: {}".format(
             type(self).__name__, filename, function, line, message)
-        logger.debug(f"Caught exception: {self.message}")
+        logger.debug(tb)
         super().__init__(self.message)
 
 

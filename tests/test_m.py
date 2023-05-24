@@ -43,6 +43,8 @@ class Params(object):
         parser.add_argument("--screen", action="store_true")
         parser.add_argument("--file", action="store_true")
         parser.add_argument("--dir", action="store", help="Output Directory")
+        parser.add_argument("--scope", action="store", help="Scope")
+        parser.add_argument("--collections", action="store", help="Collections")
         self.args = parser.parse_args()
 
     @property
@@ -53,6 +55,8 @@ class Params(object):
 def manual_2():
     connect_string = f"ws://{options.host}:4984"
     directory = options.dir if options.dir else os.environ['HOME']
+    scope = options.scope if options.scope else "_default"
+    collections = options.collections.split(',') if options.collections else ["_default"]
     logging.basicConfig()
     logger.setLevel(logging.DEBUG)
 
@@ -68,6 +72,8 @@ def manual_2():
         connect_string,
         ReplicatorType.PULL,
         SessionAuth(options.session),
+        scope,
+        collections,
         output
     ))
 

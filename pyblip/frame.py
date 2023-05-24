@@ -259,8 +259,8 @@ class BLIPMessenger(object):
 
         message.extend(struct.pack('>I', self.s_crc))
 
-        # for line in FrameDump(message):
-        #     logger.debug(line)
+        for line in FrameDump(message):
+            logger.debug(line)
 
         return message
 
@@ -283,8 +283,8 @@ class BLIPMessenger(object):
         header = 0
         total = len(message)
 
-        # for line in FrameDump(message):
-        #     logger.debug(line)
+        for line in FrameDump(message):
+            logger.debug(line)
 
         r = BytesIO(message)
 
@@ -305,8 +305,8 @@ class BLIPMessenger(object):
             self.r_crc = zlib.crc32(inflated, self.r_crc)
             inflated = inflated + message[-4:]
             r = BytesIO(inflated)
-            # for line in FrameDump(inflated):
-            #     logger.debug(line)
+            for line in FrameDump(inflated):
+                logger.debug(line)
         else:
             self.r_crc = zlib.crc32(message[header:total - 4], self.r_crc)
 

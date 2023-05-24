@@ -15,6 +15,8 @@ class LocalDB(object):
         if not directory:
             directory = os.environ.get('HOME') if os.environ.get('HOME') else "/var/tmp"
         self.directory = directory
+        self.db_files = {}
+        self._database = None
         self.db_file = None
         self.con = None
         self.cur = None
@@ -22,35 +24,41 @@ class LocalDB(object):
         if not os.access(self.directory, os.W_OK):
             raise OutputError(f"Directory {self.directory} is not writable")
 
-    def database(self, name: str):
-        self.db_file = f"{self.directory}/{name}.db"
-        self.con = sqlite3.connect(self.db_file)
-        self.cur = self.con.cursor()
+    def database(self, database: str, collections: list[str]):
+        self._database = database
+        for collection in collections:
+            name = collection if collection != "_default" else database
+            self.db_files[name] = {}
+            self.db_files[name]["db_file"] = f"{self.directory}/{name}.db"
+            self.db_files[name]["con"] = sqlite3.connect(self.db_files[name]["db_file"])
+            self.db_files[name]["cur"] = self.db_files[name]["con"].cursor()
 
-        self.cur.execute('''
-           CREATE TABLE IF NOT EXISTS documents(
-               doc_id TEXT PRIMARY KEY ON CONFLICT REPLACE,
-               document TEXT 
-           )''')
-        self.cur.execute('''
-            CREATE TABLE IF NOT EXISTS attachments(
-                doc_id TEXT PRIMARY KEY ON CONFLICT REPLACE,
-                content_type TEXT,
-                data BLOB
-            )''')
-        self.con.commit()
+            self.db_files[name]["cur"].execute('''
+               CREATE TABLE IF NOT EXISTS documents(
+                   doc_id TEXT PRIMARY KEY ON CONFLICT REPLACE,
+                   document TEXT 
+               )''')
+            self.db_files[name]["cur"].execute('''
+                CREATE TABLE IF NOT EXISTS attachments(
+                    doc_id TEXT PRIMARY KEY ON CONFLICT REPLACE,
+                    content_type TEXT,
+                    data BLOB
+                )''')
+            self.db_files[name]["con"].commit()
 
         return self
 
-    def write(self, doc_id: str, document: Union[dict, str]):
+    def write(self, doc_id: str, document: Union[dict, str], collection: str = None):
+        name = collection if collection and collection != "_default" else self._database
         if type(document) == dict:
             document = json.dumps(document)
-        self.cur.execute("INSERT OR REPLACE INTO documents VALUES (?, ?)", (doc_id, document))
-        self.con.commit()
+        self.db_files[name]["cur"].execute("INSERT OR REPLACE INTO documents VALUES (?, ?)", (doc_id, document))
+        self.db_files[name]["con"].commit()
 
-    def write_attachment(self, doc_id: str, c_type: str, data: bytes):
-        self.cur.execute("INSERT OR REPLACE INTO attachments VALUES (?, ?, ?)", (doc_id, c_type, data))
-        self.con.commit()
+    def write_attachment(self, doc_id: str, c_type: str, data: bytes, collection: str = None):
+        name = collection if collection and collection != "_default" else self._database
+        self.db_files[name]["cur"].execute("INSERT OR REPLACE INTO attachments VALUES (?, ?, ?)", (doc_id, c_type, data))
+        self.db_files[name]["con"].commit()
 
 
 class LocalFile(object):
