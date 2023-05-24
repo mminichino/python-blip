@@ -6,7 +6,11 @@ import json
 import re
 from typing import Union
 import mimetypes
+import logging
 from .exceptions import OutputError
+
+logger = logging.getLogger('pyblip.output')
+logger.addHandler(logging.NullHandler())
 
 
 class LocalDB(object):
@@ -67,33 +71,39 @@ class LocalFile(object):
         if not directory:
             directory = os.environ.get('HOME') if os.environ.get('HOME') else "/var/tmp"
         self.directory = directory
-        self.jsonl_file = None
+        self.jsonl_file = {}
+        self._database = None
 
         if not os.access(self.directory, os.W_OK):
             raise OutputError(f"Directory {self.directory} is not writable")
 
-    def database(self, name: str):
-        self.jsonl_file = f"{self.directory}/{name}.jsonl"
+    def database(self, database: str, collections: list[str]):
+        self._database = database
+        for collection in collections:
+            name = collection if collection != "_default" else database
+            self.jsonl_file[name] = f"{self.directory}/{name}.jsonl"
 
-        try:
-            open(self.jsonl_file, 'w').close()
-        except Exception as err:
-            raise OutputError(f"can not open file {self.jsonl_file}: {err}")
+            try:
+                open(self.jsonl_file[name], 'w').close()
+            except Exception as err:
+                raise OutputError(f"can not open file {self.jsonl_file[name]}: {err}")
 
         return self
 
-    def write(self, doc_id: str, document: Union[dict, str]):
+    def write(self, doc_id: str, document: Union[dict, str], collection: str = None):
+        name = collection if collection and collection != "_default" else self._database
         try:
-            with open(self.jsonl_file, 'a') as jsonl_file:
+            with open(self.jsonl_file[name], 'a') as jsonl_file:
                 line = {doc_id: document}
                 jsonl_file.write(json.dumps(line) + '\n')
         except Exception as err:
             raise OutputError(f"can not write to file: {err}")
 
-    def write_attachment(self, doc_id: str, c_type: str, data: bytes):
+    def write_attachment(self, doc_id: str, c_type: str, data: bytes, collection: str = None):
+        name = collection if collection and collection != "_default" else self._database
         extension = mimetypes.guess_all_extensions(c_type)[0]
         file_prefix = re.sub(r'[#%&{}<>*?$!:@+|=\\/\'\s`\"]', '_', doc_id).strip().lower()
-        filename = f"{self.directory}/{file_prefix}{extension}"
+        filename = f"{self.directory}/{name}_{file_prefix}{extension}"
         try:
             with open(filename, 'wb') as data_file:
                 data_file.write(data)
@@ -106,16 +116,22 @@ class ScreenOutput(object):
 
     def __init__(self):
         self._database = None
+        self.collections = []
 
-    def database(self, name: str):
-        self._database = name
+    def database(self, database: str, collections: list[str]):
+        self._database = database
+        for collection in collections:
+            name = collection if collection != "_default" else database
+            self.collections.append(name)
         return self
 
     @staticmethod
-    def write(doc_id: str, document: Union[dict, str]):
+    def write(doc_id: str, document: Union[dict, str], collection: str = None):
+        logger.debug(f"Screen Output {doc_id} from {collection}")
         line = {doc_id: document}
         print(json.dumps(line))
 
     @staticmethod
-    def write_attachment(doc_id: str, c_type: str, data: bytes):
+    def write_attachment(doc_id: str, c_type: str, data: bytes, collection: str = None):
+        logger.debug(f"Screen Output: Attachment {doc_id} from {collection}")
         print(f"Attachment from document {doc_id} of type {c_type} length {len(data)}")
