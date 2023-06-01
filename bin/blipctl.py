@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+
+import logging
+import warnings
+import argparse
+import sys
+import os
+import signal
+import inspect
+import traceback
+from pyblip.headers import SessionAuth
+from pyblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
+from pyblip.output import LocalDB, LocalFile, ScreenOutput
+
+warnings.filterwarnings("ignore")
+logger = logging.getLogger()
+
+
+def break_signal_handler(signum, frame):
+    signal_name = signal.Signals(signum).name
+    (filename, line, function, lines, index) = inspect.getframeinfo(frame)
+    logger.debug(f"received break signal {signal_name} in {filename} {function} at line {line}")
+    tb = traceback.format_exc()
+    logger.debug(tb)
+    print("")
+    print("Break received, aborting.")
+    sys.exit(1)
+
+
+class Parameters(object):
+
+    def __init__(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--ssl', action='store_true', help="Use SSL")
+        parser.add_argument('-h', '--host', action='store', help="Hostname or IP address", default="127.0.0.1")
+        parser.add_argument('-u', '--user', action='store', help="User Name", default="Administrator")
+        parser.add_argument('-p', '--password', action='store', help="User Password", default="password")
+        parser.add_argument('-d', '--database', action='store', help="Sync Gateway Database")
+        parser.add_argument('-t', '--session', action='store', help="Session Token")
+        parser.add_argument('-O', '--screen', action="store_true")
+        parser.add_argument('-f', '--file', action="store_true")
+        parser.add_argument("--dir", action="store", help="Output Directory")
+        parser.add_argument("--scope", action="store", help="Scope")
+        parser.add_argument("--collections", action="store", help="Collections")
+        parser.add_argument('-D', '--debug', action='store_true', help="Debug output")
+        parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
+        self.args = parser.parse_args()
+
+    @property
+    def parameters(self):
+        return self.args
+
+
+class CustomFormatter(logging.Formatter):
+    grey = "\x1b[38;20m"
+    yellow = "\x1b[33;20m"
+    red = "\x1b[31;20m"
+    bold_red = "\x1b[31;1m"
+    green = "\x1b[32;20m"
+    reset = "\x1b[0m"
+    format_level = "%(levelname)s"
+    format_name = "%(name)s"
+    format_message = "%(message)s"
+    format_line = "(%(filename)s:%(lineno)d)"
+    format_extra = " [%(name)s](%(filename)s:%(lineno)d)"
+    FORMATS = {
+        logging.DEBUG: f"{grey}{format_level}{reset} - {format_message}",
+        logging.INFO: f"{green}{format_level}{reset} - {format_message}",
+        logging.WARNING: f"{yellow}{format_level}{reset} - {format_message}",
+        logging.ERROR: f"{red}{format_level}{reset} - {format_message}",
+        logging.CRITICAL: f"{red}{format_level}{reset} - {format_message}"
+    }
+
+    def format(self, record):
+        log_fmt = self.FORMATS.get(record.levelno)
+        if logging.DEBUG >= logging.root.level:
+            log_fmt += self.format_extra
+        formatter = logging.Formatter(log_fmt)
+        return formatter.format(record)
+
+
+class RunMain(object):
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def run(options):
+        connect_string = f"ws://{options.host}:4984"
+        directory = options.dir if options.dir else os.environ['HOME']
+        scope = options.scope if options.scope else "_default"
+        collections = options.collections.split(',') if options.collections else ["_default"]
+        logging.basicConfig()
+        logger.setLevel(logging.DEBUG)
+
+        if options.screen:
+            output = ScreenOutput()
+        elif options.file:
+            output = LocalFile(directory)
+        else:
+            output = LocalDB(directory)
+
+        replicator = Replicator(ReplicatorConfiguration.create(
+            options.database,
+            connect_string,
+            ReplicatorType.PULL,
+            SessionAuth(options.session),
+            scope,
+            collections,
+            output
+        ))
+
+        try:
+            replicator.start()
+            replicator.replicate()
+            replicator.stop()
+        except Exception as err:
+            print(f"{err}")
+
+
+def main():
+    global logger
+    signal.signal(signal.SIGINT, break_signal_handler)
+    default_debug_file = f"{os.environ['HOME']}/{os.path.splitext(os.path.basename(__file__))[0]}_debug.out"
+    debug_file = os.environ.get("PYBLIP_DEBUG_FILE", default_debug_file)
+    arg_parser = Parameters()
+    parameters = arg_parser.parameters
+
+    try:
+        if parameters.debug:
+            logger.setLevel(logging.DEBUG)
+
+            try:
+                open(debug_file, 'w').close()
+            except Exception as err:
+                print(f"[!] Warning: can not clear log file {debug_file}: {err}")
+
+            file_handler = logging.FileHandler(debug_file)
+            file_formatter = logging.Formatter(logging.BASIC_FORMAT)
+            file_handler.setFormatter(file_formatter)
+            logger.addHandler(file_handler)
+        elif parameters.verbose or parameters.command == 'version':
+            logger.setLevel(logging.INFO)
+        else:
+            logger.setLevel(logging.ERROR)
+    except (ValueError, KeyError):
+        pass
+
+    screen_handler = logging.StreamHandler()
+    screen_handler.setFormatter(CustomFormatter())
+    logger.addHandler(screen_handler)
+
+    RunMain().run(parameters)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except SystemExit as e:
+        sys.exit(e.code)
