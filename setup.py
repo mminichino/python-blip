@@ -12,6 +12,7 @@ setup(
     license='MIT License',
     author='Michael Minichino',
     python_requires='>=3.9',
+    scripts=['bin/blipctl'],
     install_requires=[
         'attrs',
         'dnspython',
