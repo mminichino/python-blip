@@ -7,3 +7,5 @@ pytest-asyncio~=0.17,>=0.17.2
 pytest-rerunfailures==11.1.2
 pytest-mock~=3.10
 Twisted~=22.2,>=22.2.1
+dnspython==2.3.0
+docker==6.1.3
