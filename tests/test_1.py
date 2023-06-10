@@ -22,11 +22,8 @@ def test_uvarint_1():
 
     for n in numbers:
         buffer, _ = put_uvarint(uint64(n))
-        for b in buffer:
-            print("{0:b} ".format(b), end='')
-        print("")
         result, _ = uvarint(buffer)
-        print(f"{n} =  {result}")
+        assert n == result
 
     u_numbers = [
         -1,
@@ -38,8 +35,5 @@ def test_uvarint_1():
 
     for n in u_numbers:
         buffer, _ = put_varint(int64(n))
-        for b in buffer:
-            print("{0:b} ".format(b), end='')
-        print("")
         result, _ = varint(buffer)
-        print(f"{n} =  {result}")
+        assert n == result

@@ -128,7 +128,7 @@ def pytest_sessionstart(session):
                                                '-U', 'region@central'])
     json_data = json.loads(bytes(output).decode('utf-8'))
     assert exit_code == 0
-    print(json_data['session_id'])
+    pytest.adjuster_session_id = json_data['session_id']
 
     exit_code, output = container_id.exec_run(['/demo/couchbase/sgwcli/sgwcli',
                                                'auth',
@@ -138,7 +138,7 @@ def pytest_sessionstart(session):
                                                '-U', 'region@central'])
     json_data = json.loads(bytes(output).decode('utf-8'))
     assert exit_code == 0
-    print(json_data['session_id'])
+    pytest.insurance_session_id = json_data['session_id']
 
     print("Ready.")
 
