@@ -2,6 +2,7 @@ import json
 
 import pytest
 import docker
+from docker.errors import APIError
 from docker.models.containers import Container
 import tarfile
 import io
@@ -45,37 +46,44 @@ def pytest_configure(config):
 
 
 def pytest_sessionstart(session):
+    client = docker.from_env()
     if session:
         external = session.config.getoption('--external')
         if external:
             return
     print("Starting test container")
-    client = docker.from_env()
-    container_id = client.containers.run('mminichino/cbdev:latest',
-                                         detach=True,
-                                         name="pytest",
-                                         ports={
-                                                8091: 8091,
-                                                18091: 18091,
-                                                8092: 8092,
-                                                18092: 18092,
-                                                8093: 8093,
-                                                18093: 18093,
-                                                8094: 8094,
-                                                18094: 18094,
-                                                8095: 8095,
-                                                18095: 18095,
-                                                8096: 8096,
-                                                18096: 18096,
-                                                8097: 8097,
-                                                18097: 18097,
-                                                11207: 11207,
-                                                11210: 11210,
-                                                9102: 9102,
-                                                4984: 4984,
-                                                4985: 4985,
-                                         },
-                                         )
+
+    try:
+        container_id = client.containers.run('mminichino/cbdev:latest',
+                                             detach=True,
+                                             name="pytest",
+                                             ports={
+                                                    8091: 8091,
+                                                    18091: 18091,
+                                                    8092: 8092,
+                                                    18092: 18092,
+                                                    8093: 8093,
+                                                    18093: 18093,
+                                                    8094: 8094,
+                                                    18094: 18094,
+                                                    8095: 8095,
+                                                    18095: 18095,
+                                                    8096: 8096,
+                                                    18096: 18096,
+                                                    8097: 8097,
+                                                    18097: 18097,
+                                                    11207: 11207,
+                                                    11210: 11210,
+                                                    9102: 9102,
+                                                    4984: 4984,
+                                                    4985: 4985,
+                                             },
+                                             )
+    except docker.errors.APIError as e:
+        if e.status_code == 409:
+            container_id = client.containers.get('pytest')
+        else:
+            raise
 
     print("Container started")
     print("Waiting for container startup")
@@ -104,8 +112,8 @@ def pytest_sessionstart(session):
     cmd_list = [
         "/demo/couchbase/cbperf/bin/cb_perf load --host 127.0.0.1 --schema insurance_sample --replica 0 --safe --quota 128",
         "/demo/couchbase/cbperf/bin/cb_perf load --host 127.0.0.1 --count 30 --schema adjuster_demo --replica 0 --safe --quota 128",
-        "/demo/couchbase/sgwcli/sgwcli database create -h 127.0.0.1 -b insurance_sample -k insurance_sample.data -n insurance",
-        "/demo/couchbase/sgwcli/sgwcli database create -h 127.0.0.1 -b adjuster_demo -n adjuster",
+        "/demo/couchbase/sgwcli/sgwcli database create -h 127.0.0.1 -i -b insurance_sample -k insurance_sample.data -n insurance",
+        "/demo/couchbase/sgwcli/sgwcli database create -h 127.0.0.1 -i -b adjuster_demo -n adjuster",
         "/demo/couchbase/sgwcli/sgwcli database wait -h 127.0.0.1 -n insurance",
         "/demo/couchbase/sgwcli/sgwcli database wait -h 127.0.0.1 -n adjuster",
         "/demo/couchbase/sgwcli/sgwcli user map -h 127.0.0.1 -d 127.0.0.1 -f region -k insurance_sample -n insurance",
@@ -129,6 +137,7 @@ def pytest_sessionstart(session):
     json_data = json.loads(bytes(output).decode('utf-8'))
     assert exit_code == 0
     pytest.adjuster_session_id = json_data['session_id']
+    print(f"Adjuster session token: {pytest.adjuster_session_id}")
 
     exit_code, output = container_id.exec_run(['/demo/couchbase/sgwcli/sgwcli',
                                                'auth',
@@ -139,6 +148,7 @@ def pytest_sessionstart(session):
     json_data = json.loads(bytes(output).decode('utf-8'))
     assert exit_code == 0
     pytest.insurance_session_id = json_data['session_id']
+    print(f"Insurance session token: {pytest.insurance_session_id}")
 
     print("Ready.")
 

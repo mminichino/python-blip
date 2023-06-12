@@ -39,10 +39,10 @@ class Parameters(object):
         parser.add_argument('-t', '--session', action='store', help="Session Token")
         parser.add_argument('-O', '--screen', action="store_true")
         parser.add_argument('-f', '--file', action="store_true")
-        parser.add_argument("--dir", action="store", help="Output Directory")
-        parser.add_argument("--scope", action="store", help="Scope")
-        parser.add_argument("--collections", action="store", help="Collections")
-        parser.add_argument('-D', '--debug', action='store_true', help="Debug output")
+        parser.add_argument('-D', '--dir', action="store", help="Output Directory")
+        parser.add_argument('-s', '--scope', action="store", help="Scope")
+        parser.add_argument('-c', '--collections', action="store", help="Collections")
+        parser.add_argument('-vv', '--debug', action='store_true', help="Debug output")
         parser.add_argument('-v', '--verbose', action='store_true', help="Verbose output")
         self.args = parser.parse_args()
 
@@ -91,7 +91,6 @@ class RunMain(object):
         scope = options.scope if options.scope else "_default"
         collections = options.collections.split(',') if options.collections else ["_default"]
         logging.basicConfig()
-        logger.setLevel(logging.DEBUG)
 
         if options.screen:
             output = ScreenOutput()
