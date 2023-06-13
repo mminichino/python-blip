@@ -10,10 +10,9 @@ from websockets.exceptions import InvalidStatusCode, ConnectionClosed
 import multiprocessing
 from multiprocessing import Lock
 from queue import Empty
-from pyblip.frame import MPAtomicIncrement
-from .exceptions import WebSocketError, NotAuthorized, HTTPNotImplemented, InternalServerError
+from pythonblip.frame import MPAtomicIncrement
 
-logger = logging.getLogger('pyblip.client')
+logger = logging.getLogger('pythonblip.client')
 logger.addHandler(logging.NullHandler())
 sent_counter = MPAtomicIncrement()
 

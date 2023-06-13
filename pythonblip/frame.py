@@ -6,14 +6,14 @@ import logging
 from attr.validators import instance_of as io
 from enum import Enum
 import multiprocessing
-import pyblip.varint as binary
+import pythonblip.varint as binary
 from .exceptions import CRCMismatch
 import zlib
 import struct
 import json
 from io import BytesIO
 
-logger = logging.getLogger('pyblip.frame')
+logger = logging.getLogger('pythonblip.frame')
 logger.addHandler(logging.NullHandler())
 
 

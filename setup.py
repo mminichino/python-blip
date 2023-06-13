@@ -5,9 +5,9 @@ this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
 setup(
-    name='pyblip',
-    version='0.1.1',
-    packages=['pyblip'],
+    name='pythonblip',
+    version='0.2.0',
+    packages=['pythonblip'],
     url='https://github.com/mminichino/python-blip',
     license='Apache License 2.0',
     author='Michael Minichino',

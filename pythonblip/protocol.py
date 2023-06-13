@@ -10,7 +10,7 @@ from .frame import BLIPMessenger, BLIPMessage, MessageType
 from .exceptions import BLIPError, ClientError
 from .client import BLIPClient
 
-logger = logging.getLogger('pyblip.protocol')
+logger = logging.getLogger('pythonblip.protocol')
 logger.addHandler(logging.NullHandler())
 
 

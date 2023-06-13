@@ -7,7 +7,7 @@ import inspect
 import logging
 import traceback
 
-logger = logging.getLogger('pyblip.exception')
+logger = logging.getLogger('pythonblip.exception')
 logger.addHandler(logging.NullHandler())
 
 

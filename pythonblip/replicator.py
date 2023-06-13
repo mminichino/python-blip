@@ -15,7 +15,7 @@ from .exceptions import ReplicationError, BLIPError, ClientError
 from .protocol import BLIPProtocol
 from .output import LocalDB, LocalFile, ScreenOutput
 
-logger = logging.getLogger('pyblip.replicator')
+logger = logging.getLogger('pythonblip.replicator')
 logger.addHandler(logging.NullHandler())
 
 

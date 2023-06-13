@@ -11,9 +11,9 @@ parent = os.path.dirname(current)
 sys.path.append(parent)
 sys.path.append(current)
 
-from pyblip.headers import SessionAuth
-from pyblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
-from pyblip.output import LocalDB, LocalFile, ScreenOutput
+from pythonblip.headers import SessionAuth
+from pythonblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
+from pythonblip.output import LocalDB, LocalFile, ScreenOutput
 from conftest import pytest_sessionstart, pytest_sessionfinish
 
 warnings.filterwarnings("ignore")

@@ -8,9 +8,9 @@ import os
 import signal
 import inspect
 import traceback
-from pyblip.headers import SessionAuth
-from pyblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
-from pyblip.output import LocalDB, LocalFile, ScreenOutput
+from pythonblip.headers import SessionAuth
+from pythonblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
+from pythonblip.output import LocalDB, LocalFile, ScreenOutput
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()

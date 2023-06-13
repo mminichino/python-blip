@@ -2,18 +2,17 @@
 
 import os
 import subprocess
-import re
 import sys
 import pytest
 
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
-pkg_dir = parent + '/pyblip'
+pkg_dir = parent + '/pythonblip'
 sys.path.append(parent)
 sys.path.append(pkg_dir)
 sys.path.append(current)
 
-from pyblip.varint import *
+from pythonblip.varint import *
 
 
 def cli_run(cmd: str, *args: str):
@@ -111,4 +110,3 @@ def test_cli_2(hostname):
     assert result == 0
     assert os.path.isfile(adjuster_file) is True
     assert line_count(adjuster_file) == 30
-

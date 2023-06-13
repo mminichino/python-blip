@@ -9,7 +9,7 @@ import mimetypes
 import logging
 from .exceptions import OutputError
 
-logger = logging.getLogger('pyblip.output')
+logger = logging.getLogger('pythonblip.output')
 logger.addHandler(logging.NullHandler())
 
 
