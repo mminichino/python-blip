@@ -5,12 +5,16 @@ Pure Python implementation of the Couchbase BLIP sync protocol.
 Installing
 ==========
 ```
-$ pip install pyblip
+$ pip install pythonblip
 ```
 
 Usage
 =====
 ```
+from pythonblip.headers import SessionAuth
+from pythonblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
+from pythonblip.output import LocalDB, LocalFile, ScreenOutput
+
 host = "127.0.0.1"
 database = "mobile"
 connect_string = f"ws://{host}:4984"
