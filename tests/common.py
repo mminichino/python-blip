@@ -8,11 +8,14 @@ import os
 import tarfile
 import json
 import warnings
+import logging
 import pytest
 
 warnings.filterwarnings("ignore")
 current = os.path.dirname(os.path.realpath(__file__))
 parent = os.path.dirname(current)
+logging.getLogger("docker").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 def copy_to_container(container_id: Container, src: str, dst: str):
