@@ -31,6 +31,8 @@ class ReplicatorConfiguration(object):
     target = attr.ib(validator=instance_of(str))
     type = attr.ib(validator=instance_of(ReplicatorType))
     authenticator = attr.ib(validator=instance_of((SessionAuth, BasicAuth)))
+    tls = attr.ib(validator=instance_of(bool))
+    port = attr.ib(validator=instance_of(str))
     scope = attr.ib(validator=instance_of(str))
     collections = attr.ib(validator=instance_of(list))
     datastore = attr.ib(validator=instance_of((LocalDB, LocalFile, ScreenOutput)))
@@ -39,9 +41,11 @@ class ReplicatorConfiguration(object):
 
     @classmethod
     def create(cls, database: str,
-               target: str,
+               hostname: str,
                r_type: ReplicatorType,
                authenticator: Union[SessionAuth, BasicAuth],
+               tls: bool = False,
+               port: str = "4984",
                scope: str = "_default",
                collections: list[str] = None,
                output: Union[LocalDB, LocalFile, ScreenOutput] = None,
@@ -49,11 +53,17 @@ class ReplicatorConfiguration(object):
                checkpoint: bool = True):
         if not collections:
             collections = ["_default"]
+        if tls:
+            prefix = "wss"
+        else:
+            prefix = "ws"
         return cls(
             database,
-            f"{target}/{database}/_blipsync",
+            f"{prefix}://{hostname}:{port}/{database}/_blipsync",
             r_type,
             authenticator,
+            tls,
+            port,
             scope,
             collections,
             output.database(database, collections),
@@ -121,7 +131,7 @@ class Replicator(object):
                 _hash = self.get_id_hash(self.config.scope, collection)
                 self.collection_list.append(_target)
                 self.hash_list.append(_hash)
-        self.blip = BLIPProtocol(self.config.target, self.config.authenticator.header())
+        self.blip = BLIPProtocol(self.config.target, self.config.authenticator.header(), self.config.tls)
         logger.info(f"Replicator active for client {self.client}")
 
     def get_id_hash(self, scope: str = None, collection: str = None) -> str:

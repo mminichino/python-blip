@@ -6,7 +6,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name='pythonblip',
-    version='0.2.1',
+    version='0.3.0',
     packages=['pythonblip'],
     url='https://github.com/mminichino/python-blip',
     license='Apache License 2.0',

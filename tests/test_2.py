@@ -13,8 +13,6 @@ sys.path.append(parent)
 sys.path.append(pkg_dir)
 sys.path.append(current)
 
-from pythonblip.varint import *
-
 
 def cli_run(cmd: str, *args: str):
     command_output = ""
@@ -45,40 +43,12 @@ def line_count(filename: str) -> int:
 
 @pytest.fixture(autouse=True, scope='module')
 def test_start_stop():
-    start_container()
+    start_container(ssl=True)
     yield
     stop_container()
 
 
-def test_uvarint_1():
-    numbers = [
-        1,
-        2,
-        999,
-        1000,
-        1024,
-    ]
-
-    for n in numbers:
-        buffer, _ = put_uvarint(uint64(n))
-        result, _ = uvarint(buffer)
-        assert n == result
-
-    u_numbers = [
-        -1,
-        -2,
-        -999,
-        -1000,
-        -1024,
-    ]
-
-    for n in u_numbers:
-        buffer, _ = put_varint(int64(n))
-        result, _ = varint(buffer)
-        assert n == result
-
-
-def test_cli_1(hostname):
+def test_ssl_1(hostname):
     global parent
     os.environ['PYTHONPATH'] = parent
     cmd = parent + '/bin/blipctl'
@@ -88,7 +58,7 @@ def test_cli_1(hostname):
     company_file = out_dir + '/company.jsonl'
     customer_file = out_dir + '/customer.jsonl'
     picture_file = out_dir + '/picture.jsonl'
-    args = ['-n', hostname, '-d', 'insurance', '-t', pytest.insurance_session_id, '-s', 'data', '-c', 'adjuster,claims,company,customer,picture', '-f', '-D', out_dir]
+    args = ['-n', hostname, '-d', 'insurance', '-t', pytest.insurance_session_id, '-s', 'data', '-c', 'adjuster,claims,company,customer,picture', '-f', '-D', out_dir, '--ssl']
 
     result, output = cli_run(cmd, *args)
     print(output)
@@ -105,13 +75,13 @@ def test_cli_1(hostname):
     assert line_count(picture_file) == 0
 
 
-def test_cli_2(hostname):
+def test_ssl_2(hostname):
     global parent
     os.environ['PYTHONPATH'] = parent
     cmd = parent + '/bin/blipctl'
     out_dir = current + '/output'
     adjuster_file = out_dir + '/adjuster.jsonl'
-    args = ['-n', hostname, '-d', 'adjuster', '-t', pytest.adjuster_session_id, '-f', '-D', out_dir]
+    args = ['-n', hostname, '-d', 'adjuster', '-t', pytest.adjuster_session_id, '-f', '-D', out_dir, '--ssl']
 
     result, output = cli_run(cmd, *args)
     print(output)

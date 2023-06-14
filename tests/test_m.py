@@ -26,6 +26,7 @@ class Params(object):
         parser = argparse.ArgumentParser()
         parser.add_argument('--ssl', action='store_true', help="Use SSL")
         parser.add_argument('--host', action='store', help="Hostname or IP address", default="127.0.0.1")
+        parser.add_argument('--port', action='store', help="Port number", default="4984")
         parser.add_argument('--user', action='store', help="User Name", default="Administrator")
         parser.add_argument('--password', action='store', help="User Password", default="password")
         parser.add_argument('--bucket', action='store', help="Test Bucket", default="testrun")
@@ -55,7 +56,6 @@ def container_stop():
 
 
 def manual_1():
-    connect_string = f"ws://{options.host}:4984"
     directory = options.dir if options.dir else os.environ['HOME']
     scope = options.scope if options.scope else "_default"
     collections = options.collections.split(',') if options.collections else ["_default"]
@@ -71,9 +71,11 @@ def manual_1():
 
     replicator = Replicator(ReplicatorConfiguration.create(
         options.database,
-        connect_string,
+        options.host,
         ReplicatorType.PULL,
         SessionAuth(options.session),
+        options.ssl,
+        options.port,
         scope,
         collections,
         output

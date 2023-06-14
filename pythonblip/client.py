@@ -1,6 +1,6 @@
 ##
 ##
-
+import ssl
 import time
 import logging
 import asyncio
@@ -19,9 +19,8 @@ sent_counter = MPAtomicIncrement()
 
 class BLIPClient(object):
 
-    def __init__(self, uri: str, headers: dict):
+    def __init__(self, target: str, headers: dict, tls: bool = False):
         lock = Lock()
-        self.uri = uri
         self.headers = headers
         self.run_loop = True
         self.websocket = WebSocketClientProtocol()
@@ -31,11 +30,25 @@ class BLIPClient(object):
         self.run_status = multiprocessing.Value('i', 0)
         self.run_message = multiprocessing.Array('c', 256, lock=lock)
 
+        if not tls:
+            self.ssl_context = None
+        else:
+            self.ssl_context = ssl.SSLContext()
+            self.ssl_context.check_hostname = False
+            self.ssl_context.verify_mode = ssl.CERT_NONE
+            self.ssl_context.options |= ssl.OP_NO_TLSv1
+            self.ssl_context.options |= ssl.OP_NO_TLSv1_1
+            self.ssl_context.load_default_certs()
+
+        self.uri = target
+
     async def connect(self):
         tasks = []
+        logger.debug(f"Connecting to {self.uri}")
 
         try:
             connection = websockets.connect(self.uri,
+                                            ssl=self.ssl_context,
                                             extra_headers=self.headers,
                                             subprotocols=['BLIP_3+CBMobile_3'],
                                             logger=logger)
