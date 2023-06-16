@@ -14,7 +14,7 @@ sys.path.append(current)
 from pythonblip.headers import SessionAuth
 from pythonblip.replicator import Replicator, ReplicatorConfiguration, ReplicatorType
 from pythonblip.output import LocalDB, LocalFile, ScreenOutput
-from conftest import pytest_sessionstart, pytest_sessionfinish
+from common import start_container, stop_container
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
@@ -48,11 +48,11 @@ class Params(object):
 
 
 def container_start():
-    pytest_sessionstart(None)
+    start_container()
 
 
 def container_stop():
-    pytest_sessionfinish(None, 0)
+    stop_container()
 
 
 def manual_1():
